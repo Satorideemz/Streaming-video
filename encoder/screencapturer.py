@@ -35,3 +35,8 @@ class ScreenCapturer:
         if not success:
             raise RuntimeError("Error al codificar el frame de pantalla")
         return encoded.tobytes()
+    #agrego un release, liberando los recursos ocupados de video
+    def release(self):
+        if self.sct:
+            self.sct.close()
+            self.sct = None
