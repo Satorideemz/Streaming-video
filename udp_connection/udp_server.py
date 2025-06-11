@@ -70,14 +70,34 @@ class UDPServer:
         return keyboard.is_pressed('q')
 
     #funciones para pausar el servidor con la tecla "p"
-    def toggle_pause(self):
+    def toggle_pause(self, addr=None):
         """Alterna el estado de pausa si se presiona 'p'."""
         if keyboard.is_pressed('p'):
             self.paused = not self.paused
             print(f"[SERVER] {'PAUSADO' if self.paused else 'REANUDADO'}")
-            # Esperar hasta que se suelte la tecla para evitar rebote
+
+            if addr:
+                if self.paused:
+                    self.send_pause(addr)
+                else:
+                    self.send_resume(addr)
+
             while keyboard.is_pressed('p'):
                 pass
 
+        return self.paused
+    
     def is_paused(self):
         return self.paused
+
+    #funciones que notifican al cliente de la pausa y reanudamiento
+    def send_pause(self, addr):
+        """Informa al cliente que la transmisión fue pausada."""
+        self.send_packet("PAUSE", addr)
+        print("[SERVER] Enviando señal de pausa al cliente.")
+
+    def send_resume(self, addr):
+        """Informa al cliente que la transmisión fue reanudada."""
+        self.send_packet("RESUME", addr)
+        print("[SERVER] Enviando señal de reanudación al cliente.")
+    

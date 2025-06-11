@@ -17,8 +17,9 @@ _, client_addr = server.receive()
 print(f"[SERVER] Cliente detectado: {client_addr}")
 
 try:
+
     for frame in encoder:
-        server.toggle_pause()
+        server.toggle_pause(client_addr)
 
         if server.should_stop():
             print("[SERVER] 'q' presionado. Finalizando transmisión.")
@@ -33,4 +34,5 @@ try:
 
 finally:
     encoder.release()
+
 

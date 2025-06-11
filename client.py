@@ -20,16 +20,35 @@ decoder = LiveVideoViewer(width=WIDTH, height=HEIGHT, fps=FPS)
 
 try:
     while True:
-        if client.should_stop():
-            print("[CLIENT] 'q' presionado. Finalizando recepción.")
-            break
-
         chunk, addr = client.receive_chunk()
-        if chunk:
-            if client.is_eof(chunk):
-                print("[CLIENT] Fin de transmisión detectado.")
-                break
 
+        #funcion de cierre desde el servidor inestable, quitado temporalmente
+        # if client.should_stop():
+        #     print("[CLIENT] 'q' presionado. Finalizando recepción.")
+        #     break
+
+        # chunk, addr = client.receive_chunk()
+        # if chunk:
+        #     if client.is_eof(chunk):
+        #         print("[CLIENT] Fin de transmisión detectado.")
+        #         break
+            
+        # Verificamos si es un mensaje de control como PAUSE o RESUME
+        if chunk in [b'PAUSE', b'RESUME']:
+            if chunk == b'PAUSE':
+                print("[CLIENT] Transmisión pausada por el servidor.")
+                # Esperamos hasta recibir un RESUME
+                while True:
+                    ctrl_msg, _ = client.receive()
+                    if ctrl_msg == b'RESUME':
+                        print("[CLIENT] Transmisión reanudada por el servidor.")
+                        break
+                continue  # Vuelve al bucle principal
+
+            # Si era RESUME directamente, no hacemos nada y seguimos
+
+        # Si es un chunk de datos real:
+        if chunk:
             reassembler.add_chunk(chunk)
 
         frame_bytes = reassembler.get_next_frame()
