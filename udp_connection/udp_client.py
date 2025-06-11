@@ -1,4 +1,5 @@
 import socket
+import keyboard
 
 class UDPClient:
     def __init__(self, host_ip='127.0.0.1', port=9999, buffer_size=1024):
@@ -39,3 +40,12 @@ class UDPClient:
         except socket.error as e:
             print(f"[ERROR] Al recibir chunk: {e}")
             return None, None
+
+    #funciones para cerrar el servidor al apretar "q"
+    def is_eof(self, data):
+        """Detecta si el paquete es EOF."""
+        return data[:6] == b'\xff\xff\xff\xff\xff\xff'
+
+    def should_stop(self):
+        """Detecta si el usuario presiona 'q'."""
+        return keyboard.is_pressed('q')

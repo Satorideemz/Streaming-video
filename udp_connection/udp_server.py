@@ -1,5 +1,6 @@
 import socket
 from encoder.chunker import Chunker
+import keyboard
 
 class UDPServer:
     def __init__(self, host_ip='0.0.0.0', port=9999, buffer_size=1024):
@@ -9,6 +10,7 @@ class UDPServer:
         self.socket = None
         #creo un objeto de tipo chunker para enviar datos
         self.chunker = Chunker(payload_size=buffer_size - 14)  # 14 bytes para el header
+        self.paused = False  # ← NUEVO
 
     def set_socket(self):
         """Crea y configura el socket UDP."""
@@ -56,4 +58,26 @@ class UDPServer:
         except socket.error as e:
             print(f"[ERROR] Al enviar chunk: {e}")
 
+    #funciones para cerrar el servidor al apretar "q"
+    def send_eof(self, addr):
+        """Envía el mensaje de fin de transmisión."""
+        eof_packet = b'\xff\xff\xff\xff\xff\xff'
+        self.send_packet_bytes(eof_packet, addr)
+        print("[SERVER] Paquete de cierre enviado.")
 
+    def should_stop(self):
+        """Devuelve True si se presionó 'q'."""
+        return keyboard.is_pressed('q')
+
+    #funciones para pausar el servidor con la tecla "p"
+    def toggle_pause(self):
+        """Alterna el estado de pausa si se presiona 'p'."""
+        if keyboard.is_pressed('p'):
+            self.paused = not self.paused
+            print(f"[SERVER] {'PAUSADO' if self.paused else 'REANUDADO'}")
+            # Esperar hasta que se suelte la tecla para evitar rebote
+            while keyboard.is_pressed('p'):
+                pass
+
+    def is_paused(self):
+        return self.paused

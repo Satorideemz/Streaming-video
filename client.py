@@ -4,29 +4,32 @@ from decoder.freamereassembler import FrameReassembler
 from decoder.livevideoviewer import LiveVideoViewer
 from framelogmetrics import FrameLogMetrics
 
-# Configuración
-
-WIDTH, HEIGHT =  800, 600
+WIDTH, HEIGHT = 800, 600
 FPS = 100
 PAYLOAD_SIZE = 1400
 BUFFER_SIZE = PAYLOAD_SIZE + 14
-#BUFFER_SIZE = 65536
 
-# Inicialización
 client = UDPClient(port=5005, buffer_size=BUFFER_SIZE)
 client.set_socket()
-client.send_packet("READY")  # Solicitud inicial al servidor
-client.socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 16 * 1024 * 1024)  # 4 MB
+client.send_packet("READY")
+client.socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 16 * 1024 * 1024)
 
 log = FrameLogMetrics()
-reassembler = FrameReassembler(payload_size=PAYLOAD_SIZE, width=WIDTH, height=HEIGHT,logger=log)
-
-decoder = LiveVideoViewer ( width=WIDTH, height=HEIGHT, fps=FPS)
+reassembler = FrameReassembler(payload_size=PAYLOAD_SIZE, width=WIDTH, height=HEIGHT, logger=log)
+decoder = LiveVideoViewer(width=WIDTH, height=HEIGHT, fps=FPS)
 
 try:
     while True:
+        if client.should_stop():
+            print("[CLIENT] 'q' presionado. Finalizando recepción.")
+            break
+
         chunk, addr = client.receive_chunk()
         if chunk:
+            if client.is_eof(chunk):
+                print("[CLIENT] Fin de transmisión detectado.")
+                break
+
             reassembler.add_chunk(chunk)
 
         frame_bytes = reassembler.get_next_frame()
