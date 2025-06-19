@@ -9,7 +9,7 @@ class UDPServer:
         self.buffer_size = buffer_size
         self.socket = None
         #creo un objeto de tipo chunker para enviar datos
-        self.chunker = Chunker(payload_size=buffer_size - 14)  # 14 bytes para el header
+        self.chunker = Chunker(payload_size=buffer_size - 16)  # 16 bytes para el header
         self.paused = False  # ← NUEVO
 
     def set_socket(self):
@@ -44,9 +44,11 @@ class UDPServer:
             print(f"[ERROR] Al enviar datos: {e}")
 
     #funciones nuevas, para enviar chunks por frame
-    def send_frame_chunks(self, frame_data, addr):
+
+
+    def send_frame_chunks(self, frame_data, addr, quality_id, is_keyframe):
         """Divide un frame en chunks y los envía al cliente."""
-        chunks = self.chunker.chunk_frame(frame_data)
+        chunks = self.chunker.chunk_frame(frame_data, quality_id, is_keyframe)
         for chunk in chunks:
             self.send_packet_bytes(chunk, addr)
 

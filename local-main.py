@@ -13,6 +13,7 @@ PAYLOAD_SIZE = 1400
 
 # Inicialización
 encoder = ScreenCapturer( width=WIDTH, height=HEIGHT, fps=FPS)
+
 chunker = Chunker(payload_size=PAYLOAD_SIZE)  # asumimos que ya lo tenés definido
 
 log = FrameLogMetrics()
@@ -23,7 +24,7 @@ decoder = LiveVideoViewer( width=WIDTH, height=HEIGHT, fps=FPS)
 try:
     for encoded_frame in encoder:
         # Simular envío por red en chunks
-        chunks = chunker.chunk_frame(encoded_frame)
+        chunks = chunker.chunk_frame(encoded_frame, encoder.compute_quality_id(),encoder.is_keyframe())
         for chunk in chunks:
             reassembler.add_chunk(chunk)
 
