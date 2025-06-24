@@ -2,58 +2,55 @@ import socket
 from udp_connection.udp_client import UDPClient
 from decoder.freamereassembler import FrameReassembler
 from decoder.livevideoviewer import LiveVideoViewer
-from framelogmetrics import FrameLogMetrics
+from decoder.videoplaybackbuffer import VideoPlaybackBuffer
+from logger.framelogmetrics import FrameLogMetrics
+from logger.bufferlogger import BufferLogger
 
+# Config
 WIDTH, HEIGHT = 800, 600
 FPS = 60
 PAYLOAD_SIZE = 1400
 BUFFER_SIZE = PAYLOAD_SIZE + 16
 
+# Cliente UDP
 client = UDPClient(port=5005, buffer_size=BUFFER_SIZE)
 client.set_socket()
 client.send_packet("READY")
 client.socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 16 * 1024 * 1024)
 
+# Logging y ensamblador
 log = FrameLogMetrics()
+buffer_logger = BufferLogger(log_file="buffer.log")
+
 reassembler = FrameReassembler(payload_size=PAYLOAD_SIZE, width=WIDTH, height=HEIGHT, logger=log)
-decoder = LiveVideoViewer(width=WIDTH, height=HEIGHT, fps=FPS)
+decoder = LiveVideoViewer(width=WIDTH, height=HEIGHT)
+playbackbuffer = VideoPlaybackBuffer(fps=FPS, logger=buffer_logger)
 
 try:
     while True:
         chunk, addr = client.receive_chunk()
 
-        #funcion de cierre desde el servidor inestable, quitado temporalmente
-        # if client.should_stop():
-        #     print("[CLIENT] 'q' presionado. Finalizando recepción.")
-        #     break
-
-        # chunk, addr = client.receive_chunk()
-        # if chunk:
-        #     if client.is_eof(chunk):
-        #         print("[CLIENT] Fin de transmisión detectado.")
-        #         break
-            
-        # Verificamos si es un mensaje de control como PAUSE o RESUME
+        # Control remoto: pausa/reanuda
         if chunk in [b'PAUSE', b'RESUME']:
             if chunk == b'PAUSE':
                 print("[CLIENT] Transmisión pausada por el servidor.")
-                # Esperamos hasta recibir un RESUME
                 while True:
                     ctrl_msg, _ = client.receive()
                     if ctrl_msg == b'RESUME':
                         print("[CLIENT] Transmisión reanudada por el servidor.")
                         break
-                continue  # Vuelve al bucle principal
+                continue
 
-            # Si era RESUME directamente, no hacemos nada y seguimos
-
-        # Si es un chunk de datos real:
+        # Proceso normal
         if chunk:
             reassembler.add_chunk(chunk)
 
-        frame_bytes = reassembler.get_next_frame()
-        if frame_bytes:
-            decoder.decode_and_display(frame_bytes)
+        frame = reassembler.get_next_frame()
+        frame_data, _ = playbackbuffer.push_and_get(frame)
+
+        if frame_data:
+            decoder.decode_and_display(frame_data)
 
 finally:
     decoder.release()
+    buffer_logger.stop()
