@@ -63,6 +63,7 @@ class ScreenCapturer:
         quality_id = self.compute_quality_id()
 
         # Condición 1: ha pasado un intervalo
+        #en este caso defini el intervalo en un segundo
         if now - self.last_keyframe_time >= 1.0:
             self.last_keyframe_time = now
             self.last_quality_id = quality_id

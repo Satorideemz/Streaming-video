@@ -3,32 +3,25 @@ import numpy as np
 import struct
 
 class FrameReassembler:
-    #Edad maxima corresponde al maximo tiempo de retraso en que un frame es aceptado
-    #Chunk threshold es el minimo de chunks recibidos para iniciar una reconstruccion 
     def __init__(self, payload_size=1400, max_age_s=0.05, chunk_threshold=0.2,
-                 width=800, height=600,logger=None): 
-        self.frames = {}  # frame_id: { 'chunks': {i: data}, 'timestamp': float, 'total': int }
+                 width=800, height=600, logger=None): 
+        self.frames = {}  # frame_id: { 'chunks': {i: data}, 'timestamp': float, ... }
         self.payload_size = payload_size
         self.max_age_s = max_age_s
         self.chunk_threshold = chunk_threshold
-        self.width = width
-        self.height = height
         self.expected_frame_id = 0
-        self.last_complete_chunks = {}
-        self.green_frame = self._create_green_frame().tobytes()
         self.logger = logger
 
-    def _create_green_frame(self):
-        return np.full((self.height, self.width, 3), (0, 255, 0), dtype=np.uint8)
+        self.last_complete_chunks = {}
+        self.last_total_chunks = 0
 
-    def _now_ms(self):
+    def _now(self):
         return time.time()
 
     def add_chunk(self, packet: bytes):
         if len(packet) < 16:
             return  # Paquete inválido
 
-        # Parsear nueva cabecera
         frame_id = int.from_bytes(packet[0:2], 'big')
         chunk_index = int.from_bytes(packet[2:4], 'big')
         total_chunks = int.from_bytes(packet[4:6], 'big')
@@ -37,7 +30,7 @@ class FrameReassembler:
         timestamp = struct.unpack('>d', packet[8:16])[0]
         payload = packet[16:]
 
-        latency = time.time() - timestamp
+        latency = self._now() - timestamp
 
         if self.logger:
             self.logger.log_chunk_received()
@@ -58,65 +51,76 @@ class FrameReassembler:
     def get_next_frame(self):
         while self.expected_frame_id in self.frames:
             info = self.frames[self.expected_frame_id]
-            age = self._now_ms() - info['timestamp']
+            age = self._now() - info['timestamp']
             received = len(info['chunks'])
             total = info['total']
             latencias = info['latencies']
 
-            # 1. Si frame completo
+            # 1. Frame completo
             if received == total:
                 chunks = info['chunks']
-                reconstructed = self._reconstruct_from_chunks(chunks, total)
+                frame_data = b''.join(chunks[i] for i in range(total))
+                
+                # Guardar como último frame válido
                 self.last_complete_chunks = chunks.copy()
-                del self.frames[self.expected_frame_id]
-                self.expected_frame_id = (self.expected_frame_id + 1) % 65536
+                self.last_total_chunks = total
+
+                frame_dict = {
+                    'frame_id': self.expected_frame_id,
+                    'timestamp': info['timestamp'],
+                    'frame_data': frame_data,
+                    'is_keyframe': bool(info['flags'] & 0b00000001),
+                    'quality_id': info['quality_id']
+                }
 
                 if self.logger:
-    
-                    avg_latency = sum(latencias) / len(latencias) if latencias else 0.0                    
-                    self.logger.log_frame_complete(received,avg_latency)
-                return reconstructed
+                    avg_latency = sum(latencias) / len(latencias) if latencias else 0.0
+                    self.logger.log_frame_complete(received, avg_latency)
 
-            # 2. Si frame vencido y al menos chunk_threshold
-            if age > self.max_age_s:
-                if received / total >= self.chunk_threshold:
-                    chunks = info['chunks']
-                    reconstructed = self._reconstruct_from_chunks(chunks, total)
-                    self.last_complete_chunks = chunks.copy()
-                    del self.frames[self.expected_frame_id]
-                    self.expected_frame_id = (self.expected_frame_id + 1) % 65536
+                del self.frames[self.expected_frame_id]
+                self.expected_frame_id = (self.expected_frame_id + 1) % 65536
+                return frame_dict
 
-                    if self.logger:
-                        self.logger.log_frame_partial(received)
-                    return reconstructed
-                else:
-                    # Descartar frame por insuficiencia
-                    del self.frames[self.expected_frame_id]
-                    self.expected_frame_id = (self.expected_frame_id + 1) % 65536
-
-                    if self.logger:
-                        self.logger.log_frame_expired(received)
-                    if self.last_complete_chunks:
-                        return self._reconstruct_from_chunks(self.last_complete_chunks, total)
+            # 2. Frame parcial aceptable
+            elif age > self.max_age_s and (received / total) >= self.chunk_threshold:
+                reconstructed_chunks = []
+                for i in range(total):
+                    if i in info['chunks']:
+                        reconstructed_chunks.append(info['chunks'][i])
+                    elif i in self.last_complete_chunks:
+                        reconstructed_chunks.append(self.last_complete_chunks[i])
                     else:
-                        return self.green_frame
+                        reconstructed_chunks.append(b'\x00' * self.payload_size)
 
-            # 3. Aún no se cumplen condiciones
-            break
+                frame_data = b''.join(reconstructed_chunks)
+
+                frame_dict = {
+                    'frame_id': self.expected_frame_id,
+                    'timestamp': info['timestamp'],
+                    'frame_data': frame_data,
+                    'is_keyframe': bool(info['flags'] & 0b00000001),
+                    'quality_id': info['quality_id']
+                }
+
+                if self.logger:
+                    self.logger.log_frame_partial(received)
+
+                del self.frames[self.expected_frame_id]
+                self.expected_frame_id = (self.expected_frame_id + 1) % 65536
+                return frame_dict
+
+            # 3. Frame descartado por incompleto
+            elif age > self.max_age_s:
+                if self.logger:
+                    self.logger.log_frame_expired(received)
+
+                del self.frames[self.expected_frame_id]
+                self.expected_frame_id = (self.expected_frame_id + 1) % 65536
+                continue
+
+            break  # Todavía no ha vencido el tiempo de espera
 
         return None
-
-
-    def _reconstruct_from_chunks(self, chunks: dict, total: int) -> bytes:
-        frame = bytearray()
-        for i in range(total):
-            if i in chunks:
-                frame.extend(chunks[i])
-            elif i in self.last_complete_chunks:
-                frame.extend(self.last_complete_chunks[i])
-            else:
-                frame.extend(b'\x00' * self.payload_size)  # Relleno con ceros
-        return bytes(frame)
 
     def update_config(self, width, height):
         if (width, height) != (self.width, self.height):
