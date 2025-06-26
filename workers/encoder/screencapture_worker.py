@@ -40,14 +40,14 @@ class ScreenCaptureWorker:
 
     def get_latest_frame(self, sync_with_fps: bool = True) -> Optional[bytes]:
         if sync_with_fps:
-            time.sleep(self.capturer.frame_duration)
+            pass
+            #time.sleep(self.capturer.frame_duration)
 
         with self.lock:
             if self.buffer:
                 return self.buffer[-1]
             else:
                 return None
-
 
     def is_keyframe(self) -> tuple[bool, int]:
         """Delegado directo al capturador."""
@@ -56,3 +56,7 @@ class ScreenCaptureWorker:
     def update_config(self, width: int, height: int, fps: int):
         """Actualiza la configuración del capturador si es necesario."""
         self.capturer.update_config(width, height, fps)
+
+    def get_fps(self):
+        """Devuelve los fps a los que esta capturando"""
+        return self.capturer.get_fps()
