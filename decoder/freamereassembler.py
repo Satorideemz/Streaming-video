@@ -3,7 +3,7 @@ import numpy as np
 import struct
 
 class FrameReassembler:
-    def __init__(self, payload_size=1400, max_age_s=0.05, chunk_threshold=0.2,
+    def __init__(self, payload_size=1400, max_age_s=0.05, chunk_threshold=0.5,
                  width=800, height=600, logger=None): 
         self.frames = {}  # frame_id: { 'chunks': {i: data}, 'timestamp': float, ... }
         self.payload_size = payload_size

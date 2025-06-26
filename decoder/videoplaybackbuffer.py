@@ -5,8 +5,8 @@ import threading
 from typing import Optional, Tuple, Dict, Any
 
 class VideoPlaybackBuffer:
-    def __init__(self, initial_buffer_ms: int = 100, max_buffer_ms: int = 500,
-                 min_buffer_ms: int = 50, fps: int = 30, logger: Any = None):
+    def __init__(self, initial_buffer_ms: int = 5, max_buffer_ms: int =50,
+                 min_buffer_ms: int = 50, fps: int = 60, logger: Any = None):
         self.buffer = collections.deque()
         self.lock = threading.Lock()
         self.logger = logger

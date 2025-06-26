@@ -3,6 +3,7 @@ import cv2
 import mss
 import time
 
+
 class ScreenCapturer:
     def __init__(self, width=800, height=600, fps=60, quality=80):
         self.width = width
@@ -11,10 +12,10 @@ class ScreenCapturer:
         self.quality = quality
         self.frame_duration = 1.0 / fps
         self.last_frame_time = time.time()
-        self.sct = mss.mss()
-        self.monitor = self.sct.monitors[1]  # Pantalla principal
 
-        #atributos nuevos
+        self.sct = None         # Se inicializa luego
+        self.monitor = None
+
         self.last_keyframe_time = time.time()
         self.last_quality_id = None
 
@@ -22,10 +23,17 @@ class ScreenCapturer:
         return self
 
     def __next__(self):
+        # Inicializar mss si aún no fue creado (esto ocurre dentro del hilo)
+        if self.sct is None:
+            self.sct = mss.mss()
+            self.monitor = self.sct.monitors[1]  # Pantalla principal
+
         now = time.time()
-        elapsed = now - self.last_frame_time
-        if elapsed < self.frame_duration:
-            time.sleep(self.frame_duration - elapsed)
+        next_frame_time = self.last_frame_time + self.frame_duration
+        sleep_duration = max(0.0, next_frame_time - now)
+        if sleep_duration > 0:
+            time.sleep(sleep_duration)
+
         self.last_frame_time = time.time()
 
         # Captura en vivo
@@ -47,7 +55,6 @@ class ScreenCapturer:
         w_q = 1.0
 
         score = w_res * (self.width * self.height) + w_fps * self.fps + w_q * self.quality
-
         # Valores de referencia
         min_score = 44.8   # aprox 800x600, 30fps, Q=25
         max_score = 150.7  # aprox 1080p, 60fps, Q=100
@@ -77,7 +84,6 @@ class ScreenCapturer:
 
         return False, quality_id
 
-    
     def update_config(self, width, height, fps):
         if (width, height, fps) != (self.width, self.height, self.fps):
             print(f"[ENCODER] Resolución cambiada a {width}x{height} @ {fps} FPS")
@@ -86,9 +92,8 @@ class ScreenCapturer:
             self.fps = fps
             # Aplica los cambios reales si se necesita reiniciar algún capturador
 
-
     #agrego un release, liberando los recursos ocupados de video
     def release(self):
-        if self.sct:
+        if self.sct is not None:
             self.sct.close()
             self.sct = None
