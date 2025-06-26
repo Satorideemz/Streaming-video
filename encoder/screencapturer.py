@@ -92,6 +92,9 @@ class ScreenCapturer:
             self.fps = fps
             # Aplica los cambios reales si se necesita reiniciar algún capturador
 
+    def get_fps(self):
+        return self.fps
+
     #agrego un release, liberando los recursos ocupados de video
     def release(self):
         if self.sct is not None:
