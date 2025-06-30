@@ -6,6 +6,7 @@ class LiveVideoViewer:
         self.window_name = window_name
         self.width = width
         self.height = height
+        self.fullscreen = False  # Estado inicial
 
         cv2.namedWindow(self.window_name, cv2.WINDOW_NORMAL)
         cv2.resizeWindow(self.window_name, width, height)
@@ -20,8 +21,22 @@ class LiveVideoViewer:
             frame = cv2.resize(frame, (self.width, self.height))
 
         cv2.imshow(self.window_name, frame)
-        key = cv2.waitKey(1)  # Escuchar brevemente por ESC sin bloquear
-        return key != 27  # True = continuar, False = salir con ESC
+        key = cv2.waitKey(1) & 0xFF
+
+        # Manejo de la tecla "k"
+        if key == ord('k'):
+            self.toggle_fullscreen()
+
+        # Salir con ESC
+        return key != 27
+
+    def toggle_fullscreen(self):
+        self.fullscreen = not self.fullscreen
+        if self.fullscreen:
+            cv2.setWindowProperty(self.window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        else:
+            cv2.setWindowProperty(self.window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_NORMAL)
+            cv2.resizeWindow(self.window_name, self.width, self.height)
 
     def update_config(self, width, height, fps):
         if (width, height, fps) != (self.width, self.height, self.fps):
@@ -29,7 +44,6 @@ class LiveVideoViewer:
             self.width = width
             self.height = height
             self.fps = fps
-            # Reconfigura si estás usando temporizador u otros buffers visuales
 
     def release(self):
         cv2.destroyAllWindows()
