@@ -49,24 +49,29 @@ class VideoPlaybackBufferWorker:
             return None
 
     def _run(self):
-        """Loop principal del worker de reproducción."""
-        print("[PLAYBACK WORKER] Loop de reproducción iniciado.")
-        while self.running and not self.stop_event.is_set():
-            try:
+            """Loop principal del worker de reproducción."""
+            print("[PLAYBACK WORKER] Loop de reproducción iniciado.")
+            while self.running and not self.stop_event.is_set():
+                try:
 
-                # Espera un nuevo frame ensamblado
-                frame = self.input_queue.get(timeout=0.1)
-                if frame:
-                    self.video_buffer.add_frame(frame)
+                    # Espera un nuevo frame ensamblado
+                    frame = self.input_queue.get(timeout=0.1)
+                    if frame:
+                        self.video_buffer.add_frame(frame)
 
-                # Intentar extraer frame para mostrar
-                frame_data, metadata = self.video_buffer.get_frame_for_display()
+                    # Intentar extraer frame para mostrar
+                    frame_data, metadata = self.video_buffer.get_frame_for_display()
 
-                if frame_data:
-                    try:
-                        self.output_queue.put((frame_data, metadata), timeout=0.1)
-                        print(f"[PLAYBACK WORKER] Frame listo para mostrar (ID: {metadata.get('frame_id', 'N/A')})")
-                    except queue.Full:
-                        print("[PLAYBACK WORKER] Cola de salida llena, descartando frame.")
-            except queue.Empty:
-                continue
+                    if frame_data:
+                        try:
+                            self.output_queue.put((frame_data, metadata), timeout=0.1)
+                            print(f"[PLAYBACK WORKER] Frame listo para mostrar (ID: {metadata.get('frame_id', 'N/A')})")
+                            frame_data, metadata = self.video_buffer.get_frame_for_display()
+                            if frame_data:
+                                self.output_queue.put((frame_data, metadata), timeout=0.1)
+                                print(f"[PLAYBACK WORKER] Frame listo para mostrar (ID: {metadata.get('frame_id', 'N/A')})")
+
+                        except queue.Full:
+                            print("[PLAYBACK WORKER] Cola de salida llena, descartando frame.")
+                except queue.Empty:
+                    continue
