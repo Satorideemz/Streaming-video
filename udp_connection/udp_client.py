@@ -35,7 +35,7 @@ class UDPClient:
         """Recibe un chunk crudo (bytes)."""
         try:
             data, addr = self.socket.recvfrom(self.buffer_size)
-            print(f"[CLIENT] Chunk recibido: {len(data)} bytes, Frame ID: {int.from_bytes(data[0:2], 'big')}, Chunk ID: {int.from_bytes(data[2:4], 'big')}")
+            #print(f"[CLIENT] Chunk recibido: {len(data)} bytes, Frame ID: {int.from_bytes(data[0:2], 'big')}, Chunk ID: {int.from_bytes(data[2:4], 'big')}")
             return data, addr
         except socket.error as e:
             print(f"[ERROR] Al recibir chunk: {e}")

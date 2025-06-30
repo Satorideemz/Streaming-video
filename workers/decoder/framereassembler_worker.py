@@ -39,7 +39,7 @@ class FrameReassemblerWorker:
 
     def get_next_frame(self, timeout: Optional[float] = None):
         """Obtiene el siguiente frame ensamblado desde la cola de salida."""
-        #time.sleep(0.033)
+        #time.sleep(0.03)
         try:
             return self.output_queue.get(timeout=timeout)
         except queue.Empty:
@@ -49,20 +49,22 @@ class FrameReassemblerWorker:
         """Loop principal de ensamblado."""
         print("[REASSEMBLER WORKER] Loop de ensamblado iniciado.")
         while self.running and not self.stop_event.is_set():
+            
             try:
                 # Intentar obtener chunk
                 chunk = self.input_queue.get(timeout=0.1)
                 if chunk:
                     self.reassembler.add_chunk(chunk)
-
+                    
                     # Armar todos los frames posibles
                     while True:
+                        
                         frame = self.reassembler.get_next_frame()
                         if frame is None:
                             break
                         try:
                             self.output_queue.put(frame, timeout=0.1)
-                            print(f"[REASSEMBLER WORKER] Frame encolado: ID {frame['frame_id']}")
+                            #print(f"[REASSEMBLER WORKER] Frame encolado: ID {frame['frame_id']}")
                         except queue.Full:
                             print("[REASSEMBLER WORKER] Cola de frames llena, frame descartado.")
             except queue.Empty:

@@ -43,7 +43,7 @@ class ChunkerWorker:
 
     def get_latest_chunks(self,fps=None) -> Optional[Dict]:
         """Devuelve el último lote de chunks generado (si lo hay)."""
-        #time.sleep (1/(fps*4)) #ajusta la frecuencia de llamado a los fps
+        time.sleep (1/(fps)) #ajusta la frecuencia de llamado a los fps
         with self.lock:
             return self.buffer[-1] if self.buffer else None
 

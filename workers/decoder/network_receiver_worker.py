@@ -51,6 +51,7 @@ class UDPReceiverWorker:
         """Loop principal del hilo, recibe y encola paquetes UDP."""
         print("[UDP RECEIVER] Loop de recepción iniciado.")
         while self.running and not self.stop_event.is_set():
+ 
             try:
                 chunk, addr = self.client.receive_chunk()
 
@@ -65,7 +66,7 @@ class UDPReceiverWorker:
 
                 try:
                     self.packet_queue.put(chunk, timeout=0.1)
-                    print(f"[UDP RECEIVER] Chunk recibido ({len(chunk)} bytes), encolado.")
+                    #print(f"[UDP RECEIVER] Chunk recibido ({len(chunk)} bytes), encolado.")
                 except queue.Full:
                     print("[UDP RECEIVER] Cola llena. Paquete descartado.")
 
